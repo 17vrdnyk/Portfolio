@@ -906,6 +906,169 @@
                 left: 31px;
             }
         }
+	/* Add these media queries at the end of existing styles */
+
+@media (max-width: 600px) {
+    /* Base Adjustments */
+    .container {
+        padding: 0 1rem;
+    }
+
+    section {
+        padding: 4rem 1rem;
+        min-height: auto;
+    }
+
+    /* Typography */
+    h2 {
+        font-size: 2rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Navigation */
+    .nav-links {
+        width: 100%;
+        padding: 2rem;
+    }
+
+    .nav-links a {
+        font-size: 1.2rem;
+    }
+
+    /* Hero Section */
+    #hero {
+        height: auto;
+        min-height: 100vh;
+        padding-top: 8rem;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        line-height: 1.2;
+    }
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+        padding: 0 1rem;
+    }
+
+    .hero-cta {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* About Section */
+    .profile-pic {
+        height: 300px;
+    }
+
+    .about-text {
+        padding: 1.5rem;
+    }
+
+    /* Projects */
+    .projects-container {
+        grid-template-columns: 1fr;
+    }
+
+    .featured-project .model-viewer {
+        height: 250px;
+    }
+
+    /* Robot Showcase */
+    .robot-model-container {
+        height: 300px;
+    }
+
+    .feature-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .feature-icon {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Skills */
+    .skill-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Timeline */
+    .timeline::after {
+        left: 20px;
+    }
+
+    .timeline-item {
+        padding-left: 50px;
+        padding-right: 0;
+    }
+
+    .timeline-item::after {
+        left: 11px;
+    }
+
+    /* Contact */
+    .contact-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .contact-form, .contact-info {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .profile-pic {
+        height: 250px;
+    }
+
+    .robot-model-container {
+        height: 250px;
+    }
+
+    .tech-list li {
+        font-size: 0.7rem;
+    }
+
+    .japanese-card {
+        padding: 1rem;
+    }
+}
+
+/* Touch Target Improvements */
+button, .hero-cta, .social-link {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Mobile Menu Enhancements */
+.nav-links {
+    backdrop-filter: blur(20px);
+    background: rgba(10, 10, 10, 0.98) !important;
+}
+
+.hamburger {
+    padding: 1rem;
+    z-index: 101;
+}
+
+/* Prevent horizontal overflow */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Image Responsiveness */
+.profile-pic img {
+    width: 100%;
+    height: auto;
+}
     </style>
 </head>
 <body>
