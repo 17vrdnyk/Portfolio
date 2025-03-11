@@ -105,11 +105,18 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
         }
 
-        .logo {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
+        .logo img {
+    width: 120px; /* Adjust width as needed */
+    height: auto; /* Maintains aspect ratio */
+    object-fit: contain; /* Ensures the image scales correctly without cropping */
+    border-radius: 8px; /* Optional: rounds the corners for a smoother look */
+    transition: transform 0.3s ease; /* Optional: adds a hover effect */
+}
+
+.logo img:hover {
+    transform: scale(1.1); /* Slight zoom effect on hover */
+}
+
 
         .nav-links {
             display: flex;
