@@ -57,6 +57,13 @@
     position: relative;
     overflow: hidden;
         }
+        
+canvas { 
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
 	
 	       /* Add to existing styles */
         .canvas-container {
@@ -1418,61 +1425,154 @@ html, body {
         <i class="fas fa-arrow-up"></i>
     </a>
 
-    <script>
-	
-	 // Add 3D scene setup from first code
-        let scene, camera, renderer, robot;
-        
+       <script>
+        // Replace the existing 3D scene code with this Baymax implementation
+        let scene, camera, renderer, model;
+        let leftHand, rightHand;
+        let scrollProgress = 0, mouseX = 0, mouseY = 0;
+        let clock, blinkTimer = 0, blinkInterval = 3, blinkDuration = 0.2;
+        let leftEye, rightEye, isBlinking = false;
+
         function init3D() {
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            scene.background = new THREE.Color(0x111111);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('canvasContainer').appendChild(renderer.domElement);
 
-            // Robot model
-            const geometry = new THREE.BoxGeometry(2, 3, 2);
-            const material = new THREE.MeshPhongMaterial({ 
-                color: 0xf6f6f6,
-                emissive: 0x004422,
-                specular: 0x111111,
-                shininess: 100 
-            });
-            robot = new THREE.Mesh(geometry, material);
-            scene.add(robot);
-
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(5, 5, 5);
             scene.add(directionalLight);
 
-            camera.position.z = 8;
+            clock = new THREE.Clock();
+            createBaymaxModel();
+            createFloatingHands();
+            
+            camera.position.z = 5;
         }
 
-        // Scroll-controlled Rotation
-        let scrollY = 0;
-        window.addEventListener('scroll', () => {
-            scrollY = window.scrollY;
-        });
+        function createBaymaxModel() {
+            model = new THREE.Group();
 
-        // Animation Loop
+            // Body
+            const bodyGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+            const positions = bodyGeometry.attributes.position.array;
+            for(let i=0; i<positions.length; i+=3) {
+                if(positions[i+1] < -0.5) positions[i+1] = -0.5;
+            }
+            bodyGeometry.attributes.position.needsUpdate = true;
+            const bodyMaterial = new THREE.MeshToonMaterial({ color: 0x222222 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = -0.5;
+            body.scale.set(1, 1.2, 1);
+            model.add(body);
+
+            // Head
+            const domeGeometry = new THREE.SphereGeometry(0.8, 32, 32, 0, Math.PI*2, 0, Math.PI/2);
+            const domeMaterial = new THREE.MeshToonMaterial({ color: 0x333333 });
+            const dome = new THREE.Mesh(domeGeometry, domeMaterial);
+            dome.position.y = 1.2;
+            model.add(dome);
+
+            // Eyes
+            const eyeGeometry = new THREE.CircleGeometry(0.06, 32);
+            const eyeMaterial = new THREE.MeshToonMaterial({ color: 0x000000 });
+            leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.25, 0.25, 0.76);
+            dome.add(leftEye);
+            rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.25, 0.25, 0.76);
+            dome.add(rightEye);
+
+            scene.add(model);
+        }
+
+        function createFloatingHands() {
+            const handGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            const handMaterial = new THREE.MeshToonMaterial({ color: 0x222222 });
+
+            leftHand = new THREE.Mesh(handGeometry, handMaterial);
+            leftHand.scale.set(1.4, 0.8, 1);
+            leftHand.position.set(-2.2, 0.5, 0);
+            model.add(leftHand);
+
+            rightHand = new THREE.Mesh(handGeometry, handMaterial);
+            rightHand.scale.set(1.4, 0.8, 1);
+            rightHand.position.set(2.2, 0.5, 0);
+            model.add(rightHand);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            robot.rotation.y = scrollY * 0.002;
-            robot.rotation.x = scrollY * 0.001;
+            const delta = clock.getDelta();
+
+            // Floating animation
+            const handFloat = Math.sin(Date.now() * 0.002) * 0.1;
+            leftHand.position.y = 0.5 + handFloat;
+            rightHand.position.y = 0.5 + handFloat;
+
+            // Scroll-controlled animation
+            leftHand.position.x = -2.2 + scrollProgress * 2.2;
+            rightHand.position.x = 2.2 - scrollProgress * 2.2;
+            model.position.y = Math.sin(Date.now() * 0.001) * 0.1 - scrollProgress * 3;
+
+            // Mouse-controlled rotation
+            model.rotation.y = mouseX * 0.5 + scrollProgress * Math.PI;
+            model.rotation.x = -mouseY * 0.3;
+
+            // Blinking logic
+            if(!isBlinking) {
+                blinkTimer += delta;
+                if(blinkTimer >= blinkInterval) {
+                    isBlinking = true;
+                    blinkTimer = 0;
+                }
+            } else {
+                blinkTimer += delta;
+                const progress = blinkTimer/blinkDuration;
+                if(progress >= 1) {
+                    isBlinking = false;
+                    blinkTimer = 0;
+                    leftEye.scale.y = 1;
+                    rightEye.scale.y = 1;
+                } else {
+                    const scale = Math.abs(Math.sin(progress * Math.PI));
+                    leftEye.scale.y = scale;
+                    rightEye.scale.y = scale;
+                }
+            }
+
             renderer.render(scene, camera);
         }
 
-        // Handle window resize
+        // Event Listeners
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Initialize 3D scene
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX/window.innerWidth - 0.5) * 2;
+            mouseY = (e.clientY/window.innerHeight - 0.5) * 2;
+        });
+
+        window.addEventListener('scroll', () => {
+            scrollProgress = window.scrollY/(document.body.scrollHeight - window.innerHeight);
+            // Keep your existing scroll effects
+            const nav = document.getElementById('navbar');
+            nav.classList.toggle('scrolled', window.scrollY > 100);
+            
+            const backToTop = document.getElementById('backToTop');
+            backToTop.classList.toggle('visible', window.scrollY > 500);
+        });
+
+        // Initialize and animate
         init3D();
         animate();
 
