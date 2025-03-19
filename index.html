@@ -1077,7 +1077,12 @@ html, body {
     max-width: 100%;
     overflow-x: hidden;
 }
-
+body {
+            cursor: grab;
+        }
+        body:active {
+            cursor: grabbing;
+        }
 /* Image Responsiveness */
 .profile-pic img {
     width: 100%;
@@ -1425,9 +1430,14 @@ html, body {
         <i class="fas fa-arrow-up"></i>
     </a>
 
-    <script>let scene, camera, renderer, earth, moon, sunLight;
-let scrollProgress = 0;
-let stars = [];
+    <script> let scene, camera, renderer, earth, moon, sunLight;
+        let scrollProgress = 0;
+        let stars = [];
+        let moonAngle = Math.atan2(-20, 15);
+        let targetEarthRotationY = 0;
+        let targetEarthRotationX = 0;
+        let mouseX = 0;
+        let mouseY = 0;
 
 function init3D() {
     scene = new THREE.Scene();
@@ -1438,6 +1448,12 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById('canvasContainer').appendChild(renderer.domElement);
+    window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+                mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+                targetEarthRotationY = mouseX * Math.PI;
+                targetEarthRotationX = mouseY * (Math.PI / 3);
+            });
 
     // Create Earth
     const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
@@ -1530,29 +1546,38 @@ function createStarField() {
 }
 
 function animate() {
-    requestAnimationFrame(animate);
+            requestAnimationFrame(animate);
 
-    // Earth rotation
-    earth.rotation.y += 0.002;
+            // Earth rotation with mouse interaction
+            earth.rotation.y += (targetEarthRotationY - earth.rotation.y) * 0.05;
+            earth.rotation.x += (targetEarthRotationX - earth.rotation.x) * 0.05;
+            earth.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, earth.rotation.x));
 
-    // Moon animation based on scroll
-    const moonOrbitRadius = 12;
-    const moonAngle = -scrollProgress * Math.PI * 2;
-    moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
-    moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
-    moon.position.y = Math.sin(scrollProgress * Math.PI) * 3;
+            // Continuous Moon orbit
+            moonAngle += 0.008;
+            const moonOrbitRadius = 25;
+            moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
+            moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
+            moon.position.y = Math.sin(moonAngle * 1.5) * 4;
+            moon.rotation.y += 0.02;
 
-    // Camera movement
-    camera.position.z = 25 - scrollProgress * 15;
-    camera.position.y = 10 + scrollProgress * 5;
-    camera.lookAt(earth.position);
+            // Camera movement with scroll
+            camera.position.z = 25 - scrollProgress * 20;
+            camera.position.y = 10 + scrollProgress * 8;
+            camera.position.x = scrollProgress * 5;
+            camera.lookAt(earth.position);
 
-    // Update lighting
-    sunLight.position.x = 100 * Math.cos(scrollProgress * Math.PI);
-    sunLight.position.z = 100 * Math.sin(scrollProgress * Math.PI);
+            // Update lighting
+            sunLight.position.x = 100 * Math.cos(scrollProgress * Math.PI);
+            sunLight.position.z = 100 * Math.sin(scrollProgress * Math.PI);
 
-    renderer.render(scene, camera);
-}
+            renderer.render(scene, camera);
+        }
+
+        // Keep existing event listeners and other code
+        window.addEventListener('scroll', () => {
+            scrollProgress = Math.min(1, window.scrollY/(document.body.scrollHeight - window.innerHeight));
+        });
 
 // Event Listeners
 window.addEventListener('resize', () => {
