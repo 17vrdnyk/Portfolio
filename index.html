@@ -58,12 +58,12 @@
     overflow: hidden;
         }
         
-canvas { 
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
+        canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
 	
 	       /* Add to existing styles */
         .canvas-container {
@@ -1425,107 +1425,149 @@ html, body {
         <i class="fas fa-arrow-up"></i>
     </a>
 
-    <script>let scene, camera, renderer, cube, backgroundBox;
-        let scrollProgress = 0, mouseX = 0, mouseY = 0;
-        let clock, blinkTimer = 0, blinkInterval = 3, blinkDuration = 0.2;
-        let leftEye, rightEye, isBlinking = false;
-        let cubePositions = [];
+    <script>let scene, camera, renderer, earth, moon, sunLight;
+let scrollProgress = 0;
+let stars = [];
+
+function init3D() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.getElementById('canvasContainer').appendChild(renderer.domElement);
+
+    // Create Earth
+    const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+    const earthMaterial = new THREE.MeshPhongMaterial({
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'),
+        bumpMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg'),
+        specularMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
+        bumpScale: 0.05,
+        specular: new THREE.Color('grey'),
+        shininess: 5
+    });
+
+    earth = new THREE.Mesh(earthGeometry, earthMaterial);
+    earth.rotation.x = -0.3;
+    scene.add(earth);
+
+    // Atmospheric glow
+    const atmosphereGeometry = new THREE.SphereGeometry(5.1, 64, 64);
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+        vertexShader: `
+            varying vec3 vNormal;
+            void main() {
+                vNormal = normalize(normalMatrix * normal);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            varying vec3 vNormal;
+            void main() {
+                float intensity = pow(1.05 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+            }
+        `,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide,
+        transparent: true
+    });
+    const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+    earth.add(atmosphere);
+
+    // Create Moon
+    const moonGeometry = new THREE.SphereGeometry(1.3, 64, 64);
+    const moonMaterial = new THREE.MeshPhongMaterial({
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/moon_1024.jpg'),
+        bumpScale: 0.05,
+        emissive: 0xaaaaaa,
+        emissiveIntensity: 0.3
+    });
+    moon = new THREE.Mesh(moonGeometry, moonMaterial);
+    moon.position.set(15, 0, -20);
+    scene.add(moon);
+
+    // Lighting
+    sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    sunLight.position.set(100, 10, 50);
+    scene.add(sunLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+    scene.add(ambientLight);
+
+    // Star field
+    createStarField();
+
+    camera.position.set(0, 10, 25);
+    camera.lookAt(earth.position);
+}
+
+function createStarField() {
+    const starGeometry = new THREE.BufferGeometry();
+    const starPositions = [];
     
-        function init3D() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111111);
-    
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvasContainer').appendChild(renderer.domElement);
-    
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
-    
-            clock = new THREE.Clock();
-            createBackgroundBox();
-            createAnimatedCube();
-            
-            camera.position.z = 8;
-        }
-    
-        function createBackgroundBox() {
-            const geometry = new THREE.BoxGeometry(8, 8, 8);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: 0x00ff88,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.3
-            });
-            backgroundBox = new THREE.Mesh(geometry, material);
-            scene.add(backgroundBox);
-        }
-    
-        function createAnimatedCube() {
-            const geometry = new THREE.BoxGeometry(2, 2, 2, 32, 32, 32);
-            const material = new THREE.MeshPhongMaterial({ 
-                color: 0xf6f6f6,
-                shininess: 100,
-                transparent: true,
-                opacity: 0.9
-            });
-    
-            cube = new THREE.Mesh(geometry, material);
-            cubePositions = geometry.attributes.position.array;
-    
-            // Create eyes
-            const eyeGeometry = new THREE.SphereGeometry(0.15);
-            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            
-    
-            scene.add(cube);
-        }
-    
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            const time = Date.now() * 0.001;
-    
-            // Background box rotation with scroll
-            backgroundBox.rotation.y = scrollProgress * Math.PI * 2;
-            backgroundBox.rotation.x = scrollProgress * Math.PI;
-    
-    
-    
-            // Cube rotation and position
-            cube.rotation.x = time * 0.5;
-            cube.rotation.y = time * 0.3;
-            cube.position.y = Math.sin(time) * 0.3;
-    
-            renderer.render(scene, camera);
-        }
-    
-        // Event Listeners
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth/window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    
-        window.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX/window.innerWidth - 0.5) * 0.2;
-            mouseY = (e.clientY/window.innerHeight - 0.5) * 0.2;
-        });
-    
-        window.addEventListener('scroll', () => {
-            scrollProgress = window.scrollY/(document.body.scrollHeight - window.innerHeight);
-            // Add scroll-based cube scale effect
-            cube.scale.set(1 + scrollProgress, 1 + scrollProgress, 1 + scrollProgress);
-        });
-    
-        // Initialize and animate
-        init3D();
-        animate();
+    for(let i = 0; i < 5000; i++) {
+        starPositions.push(
+            (Math.random() - 0.5) * 2000,
+            (Math.random() - 0.5) * 2000,
+            (Math.random() - 0.5) * 2000
+        );
+    }
+
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+    const starMaterial = new THREE.PointsMaterial({
+        color: 0xFFFFFF,
+        size: 0.1,
+        transparent: true,
+        opacity: 0.8
+    });
+
+    stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Earth rotation
+    earth.rotation.y += 0.002;
+
+    // Moon animation based on scroll
+    const moonOrbitRadius = 12;
+    const moonAngle = -scrollProgress * Math.PI * 2;
+    moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
+    moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
+    moon.position.y = Math.sin(scrollProgress * Math.PI) * 3;
+
+    // Camera movement
+    camera.position.z = 25 - scrollProgress * 15;
+    camera.position.y = 10 + scrollProgress * 5;
+    camera.lookAt(earth.position);
+
+    // Update lighting
+    sunLight.position.x = 100 * Math.cos(scrollProgress * Math.PI);
+    sunLight.position.z = 100 * Math.sin(scrollProgress * Math.PI);
+
+    renderer.render(scene, camera);
+}
+
+// Event Listeners
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+window.addEventListener('scroll', () => {
+    scrollProgress = Math.min(1, window.scrollY/(document.body.scrollHeight - window.innerHeight));
+});
+
+// Initialize and animate
+init3D();
+animate();
 
         // Keep existing JavaScript functionality
         // ... existing scroll reveal, navigation, etc ...
